@@ -1,0 +1,29 @@
+
+2020年07月12日20:09:15 
+先写个单线程的
+
+Done
+2020年07月16日00:59:48
+预期的service注册过程:
+    server.register(string serviceName, shared_ptr<Service> service);
+
+2020年07月16日01:22:05
+暂定参数包格式:
+1.请求参数包
+    (废弃)4个字节包长度 + 8个字节serviceId + 8个字节serviceMethodId + 请求参数
+    4个字节包长度 + 8个字节serviceId + methodName + "\n" + 请求参数
+2.响应参数包
+    4个字节包长度 + 4个字节是否出错(解析/传输/服务发现错误,其他错误由method_resp中的error_code标识) + 响应参数
+
+2020年07月17日23:24:13
+客户端请求方式:
+    rpcClient.Call(ServiceName, methodName, methodReq, methodResp)
+    ServiceName需要在客户端Stub上做一次序列化(Hash)
+
+2020年07月17日23:41:02
+关于客户端对返回结果的错误处理:
+    解析/传输/服务发现错误 由rpcClient.Call内部处理
+    其余错误由method_resp中error_code标识,由用户处理
+
+2020年07月18日10:55:13
+关于请求/响应参数解析: 目前只支持POD型别

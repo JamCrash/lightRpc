@@ -1,0 +1,28 @@
+
+{
+    "Service": "Math",
+    "Rpc": [
+        {
+            "method": "add",
+            "req": {
+                "x": "int32_t",
+                "y": "int32_t"
+            },
+            "resp": {
+                "err_code": "int32_t",
+                "ret": "int32_t"
+            }
+        },
+        {
+            "method": "sub",
+            "req": {
+                "x": "int32_t",
+                "y": "int32_t"
+            },
+            "resp": {
+                "err_code": "int32_t",
+                "ret": "int32_t"
+            }
+        }
+    ]
+}
