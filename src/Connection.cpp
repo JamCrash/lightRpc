@@ -57,7 +57,6 @@ void Connection::do_read_pkg()
 void Connection::do_write(std::string response)
 {
     auto self(shared_from_this());
-    LOG_TEST(response.c_str());
 
     asio::async_write(socket_, asio::buffer(response.c_str(), response.size()),
         [this, self](std::error_code ec, size_t /*length*/)
