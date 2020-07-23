@@ -12,13 +12,16 @@
 #include <cstring>
 #include <iostream>
 #include <algorithm>
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
 #include "asio.hpp"
 #include "src/T_MathParam.h"
 
 using namespace std;
 using asio::ip::tcp;
+using namespace rapidjson;
 
-enum { max_length = 1024 };
+enum { max_length = 10240 };
 
 int main(int argc, char* argv[])
 {
@@ -41,11 +44,23 @@ int main(int argc, char* argv[])
     add_req req;
     req.x = 2;
     req.y = 5;
-    uint32_t len = 8 + reqstr.size() + sizeof(req);
+    Document doc_req;
+    StringBuffer sb;
+    PrettyWriter<StringBuffer> writter(sb);
+    doc_req.Parse("{}");
+    doc_req.AddMember("x", req.x, doc_req.GetAllocator());
+    doc_req.AddMember("y", req.y, doc_req.GetAllocator());
+    //printf("add end\n");
+    doc_req.Accept(writter);
+    //printf("here\n");
+    auto req_str = sb.GetString();
+    printf("%s\n", req_str);
+    uint32_t len = 8 + reqstr.size() + strlen(req_str);
+    printf("send pkg len: %u, req_str len is %u\n", len, strlen(req_str));
     asio::write(s, asio::buffer(&len, 4));
     asio::write(s, asio::buffer(&sid, 8));
     asio::write(s, asio::buffer(reqstr.c_str(), reqstr.size()));
-    asio::write(s, asio::buffer(&req, sizeof(req)));
+    asio::write(s, asio::buffer(req_str, strlen(req_str)));
     cout << "send msg finish\n";
     char reply[max_length];
     asio::read(s, asio::buffer(&len, 4));
@@ -59,7 +74,14 @@ int main(int argc, char* argv[])
     }
     asio::read(s, asio::buffer(reply, len-4));
     add_resp resp;
-    memcpy((void*)&resp, (void*)reply, len-4);
+    Document doc;
+    if(doc.ParseInsitu(reply).GetParseError()) {
+      cout << "parse resp error\n";
+      return 1;
+    }
+    //memcpy((void*)&resp, (void*)reply, len-4);
+    resp.err_code = doc["err_code"].GetInt();
+    resp.ret = doc["ret"].GetInt();
     std::cout << "Reply is: ";
     cout << resp.ret << endl;
   }
