@@ -54,6 +54,18 @@ bool generate_wrapper();
 bool generate_method();
 bool generate_param();
 
+std::string conv2upper(char* str)
+{
+    std::string ret;
+    for(int i = 0; i < strlen(str); ++i)
+    {
+        char ch = str[i];
+        if(ch>='a' && ch<='z') ch -= 32;
+        ret.push_back(ch);
+    }
+    return ret;
+}
+
 bool generate_method(const Value& method)
 {
     if(!method.IsObject())
@@ -68,6 +80,7 @@ bool generate_method(const Value& method)
         {
             if(!m.value.IsString()) 
                 return false;
+            // TODO: check m.value is legal or not
             vec.push_back({m.name.GetString(), m.value.GetString()});
         }
         return true;
@@ -252,8 +265,8 @@ bool generate_header()
         return false;
     }
 
-    o << "\n#ifndef TINY_RPC_" << serviceName << "_SERVICE_H\n";
-    o << "#define TINY_RPC_" << serviceName << "_SERVICE_H\n";
+    o << "\n#ifndef TINY_RPC_" << conv2upper(serviceName) << "_SERVICE_H\n";
+    o << "#define TINY_RPC_" << conv2upper(serviceName) << "_SERVICE_H\n";
 
     o << "\n#include <unordered_map>\n";
     o << "\n#include \"Service.h\"\n";
@@ -336,8 +349,136 @@ bool generate_wrapper()
     o << "#include <rapidjson/document.h>\n";
     o << "#include <rapidjson/prettywriter.h>\n";
     o << "\n#include \"" << serviceName << "Service.h\"\n";
+    o << "#include \"LOG.h\"\n";
 
-    o << "\n"
+    for(Method& method: methods)
+    {
+        o << "\nstd::string " << serviceName << "Service::"
+          << method.mName << "_wrapper(char* param_data, size_t len)\n";
+        o << "{\n";
+
+        o << "\t" << method.mName << "_req req;\n";
+        o << "\t" << method.mName << "_resp resp;\n";
+        o << "\tuint32_t pkg_len;\n";
+        o << "\tuint32_t ec;\t// 错误标识 0未出错 -1出错\n";
+        o << "\trapidjson::Document doc_req;\t// 存储DOM格式请求参数\n";
+        o << "\trapidjson::Document doc_resp;\t// 存储DOM格式响应参数\n";
+        o << "\tconst char* ret_str = nullptr;\t// 指向序列化后的响应参数\n";
+        o << "\trapidjson::StringBuffer sb;\n";
+        o << "\trapidjson::PrettyWriter<rapidjson::StringBuffer> writter(sb);\t// 格式化\n";
+
+        o << "\n\tif(doc_req.ParseInsitu(param_data).HasParseError())\n";
+        o << "\t{\n";
+        o << "\t\tLOG(\"add_wraper: parse request failed\");\n";
+        o << "\t}\n\n";
+
+        auto f = [](std::string& desc)
+        {
+            std::string ret = "Get";
+            if(desc == "uint32_t")
+            {
+                ret += "Uint";
+            }
+            else if(desc == "int32_t")
+            {
+                ret += "Int";
+            }
+            else if(desc == "string")
+            {
+                ret += "String";
+            }
+            else 
+            {
+                ret = "";
+            }
+            return ret;
+        };
+        for(int i = 0; i < method.req.size(); ++i) 
+        {
+            o << "\treq." << method.req[i].first << " = doc_req[\""
+              << method.req[i].first << "\"]." << f(method.req[i].second)+"();\n";
+        }
+
+        o << "\n\t" << method.mName << "(req, resp);\n";
+
+        o << "\t// 序列化返回参数\n";
+        o << "\tdoc_resp.Parse(\"{}\");\n";
+        for(int i = 0; i < method.resp.size(); ++i)
+        {
+            o << "\tdoc_resp.AddMember(\"" << method.resp[i].first << "\", resp."
+              << method.resp[i].first << ", doc_resp.GetAllocator());\n";
+        }
+        o << "\n\tdoc_resp.Accept(writter);\n";
+        o << "\tret_str = sb.GetString();\n";
+
+        o << "\n\tpkg_len = 4 + strlen(ret_str);\n";
+        o << "\tec = 0;\n";
+        o << "\tstd::string s1((char*)&(pkg_len), 4);\n";
+        o << "\tstd::string s2((char*)&(ec), 4);\n";
+
+        o << "\n\treturn s1 + s2 + std::string(ret_str, strlen(ret_str));\n";
+
+        o << "}\n";
+    }
+
+    o.close();
+    return true;
+}
+
+bool generate_method()
+{
+    auto& o = oSrvMethod;
+    o.open(serviceMethod);
+    if(o.fail())
+    {
+        printf("error: create method.impl file failed\n");
+        // TODO: delete the created files
+        return false;
+    }
+
+    o << "\n#include \"" << serviceName << "Service.h\"\n";
+
+    for(Method& method: methods)
+    {
+        o << "\nvoid " << serviceName << "Service::" << method.mName
+          << "(" << method.mName << "_req& req, "
+          << method.mName << "_resp& resp)\n";
+        o << "{\n";
+        o << "\n}\n";
+    }
+
+    o.close();
+    return true;
+}
+
+bool generate_param()
+{
+    auto& o = oSrvParam;
+    o.open(serviceParam);
+    if(o.fail())
+    {
+        printf("error: create parameter header file failed\n");
+        // TODO: delete the created files
+        return false;
+    }
+
+    o << "\n#ifndef TINY_RPC_" << conv2upper(serviceName) << "_PARM_H\n";
+    o << "#define TINY_RPC_" << conv2upper(serviceName) << "_PARAM_H\n";
+
+    o << "\n#include <cstdint>\n";
+
+    for(Method& method: methods)
+    {
+        o << "\nstruct " << method.mName << "_req\n";
+        o << "{\n";
+        for(int i = 0; i < method.req.size(); ++i)
+        {
+            
+        }
+        o << "}\n";
+    }
+
+    o << "#endif // \n";    // define header
 
     o.close();
     return true;
