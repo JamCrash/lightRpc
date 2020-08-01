@@ -9,17 +9,22 @@ using namespace rapidjson;
 
 int main(int argc, char* argv[])
 {
-    if(argc != 2) return 0;
-    ifstream input;
-    input.open(argv[1]);
-    char buffer[2048];
-    input.read(buffer, 2048);
-    cout << strlen(buffer) << endl;
     Document doc;
-    if(doc.ParseInsitu(buffer).HasParseError()) 
+    ifstream in("file");
+    char buffer[10240];
+    while(!in.eof()) {
+        in.getline(buffer, 10240);
+    }
+    if(doc.ParseInsitu(buffer).HasParseError()) {
+        cout << "parse failed\n";
         return 0;
-    StringBuffer sb;
-    PrettyWriter<StringBuffer> pw(sb);
-    doc.Accept(pw);
-    cout << strlen(sb.GetString()) << endl;
+    }
+    Value& v = doc["han"];
+    assert(v.IsObject());
+    //cout << v["han"] << endl;
+   // v["han"];
+   if(v.HasMember("fa")) {
+       cout << "Yes" << endl;
+       cout << v["fa"].GetInt() << endl;
+   }
 }

@@ -20,7 +20,7 @@ private:
 
 private:
     /// @brief method_wraper函数解析请求参数,调用method并序列化返回结果
-    static std::string add_wraper(char* param_data, size_t len);
+    static std::string add_wrapper(char* param_data, size_t len);
 };
 
 #endif //

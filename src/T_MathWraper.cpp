@@ -13,7 +13,7 @@
 
 #include "Log.h"
 
-std::string MathService::add_wraper(char* param_data, size_t len)
+std::string MathService::add_wrapper(char* param_data, size_t len)
 {
     add_req req;
     add_resp resp;

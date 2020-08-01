@@ -4,14 +4,14 @@
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/Users/hanbaoyu/Desktop/VScode/asio/include/",
-                "/Users/hanbaoyu/Desktop/VScode/rapidjson/include/"
+                "/home/han/Desktop/VScode/libs/asio/include/",
+                "/home/han/Desktop/VScode/libs/rapidjson/include/"
             ],
             "defines": [],
             "macFrameworkPath": [],
-            "compilerPath": "/usr/local/bin/gcc-9",
+            "compilerPath": "/usr/bin/gcc",
             "cStandard": "c11",
-            "cppStandard": "gnu++14",
+            "cppStandard": "c++14",
             "intelliSenseMode": "clang-x64"
         }
     ],

@@ -4,23 +4,19 @@
 #include <rapidjson/prettywriter.h>
 #include <fstream>
 #include <stdlib.h>
+#include <iostream>
 
 using namespace std;
 using namespace rapidjson;
 
+ofstream out;
+
 int main()
 {
-    const char* json = "{\"a\": 1, \"b\": \"c\"}";
-    Document doc;
-    if(doc.Parse(json).HasParseError()) return 1;
-    for(auto& m: doc.GetObject()) 
-    {
-        printf("%s\n", m.name.GetString());
+    out.open("file");
+    if(out.fail()) {
+        cout << "fuck\n";return -1;
     }
-    const char* json2 = "{\"a\": [1, 2, \"c\"]}";
-    if(doc.Parse(json2).HasParseError()) return 1;
-    for(auto& m: doc["a"].GetArray())
-    {
-        printf("%d\n", m.GetInt());
-    }
-}
+    out << "hhhh\n";
+    return 0;
+}  
