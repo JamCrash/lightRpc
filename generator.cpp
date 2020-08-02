@@ -95,6 +95,7 @@ bool generate_method(const Value& method)
     newMethod.mName = method["method"].GetString();
     if(!f("req", newMethod.req)) return false;
     if(!f("resp", newMethod.resp)) return false;
+    methods.push_back(newMethod);
 
     return true;
 }
@@ -112,23 +113,32 @@ bool generate_and_create_file(char* dst, enum FILE_TYPE file_type)
     {
     case ServiceHeader:
         memcpy(dst, "Service.h", strlen("Service.h")+1);
-        
+        if(!generate_header()) 
+            return false;
         break;
     
     case ServiceCpp:
         memcpy(dst, "Service.cpp", strlen("Service.cpp")+1);
+        if(!generate_cpp()) 
+            return false;
         break;
 
     case ServiceWrapper:
         memcpy(dst, "Wrapper.cpp", strlen("Wrapper.cpp")+1);
+        if(!generate_wrapper())
+            return false;
         break;
     
     case ServiceMethodImpl:
         memcpy(dst, "Method.impl.cpp", strlen("Method.impl.cpp")+1);
+        if(!generate_method())
+            return false;
         break;
 
     case ServiceParam:
         memcpy(dst, "Param.h", strlen("Param.h")+1);
+        if(!generate_param())
+            return false;
         break;
 
     default:
@@ -183,26 +193,6 @@ bool generate(Document& doc)
         return false;
     }
 
-    /*
-    if(doc.HasMember("Rpc") && doc["Rpc"].IsArray())
-    {
-        const Value& methods = doc["Rpc"];
-        for(SizeType i=0; i<methods.Size(); ++i) 
-        {
-            if(!generate_method(methods[i]))
-            {
-                printf("error: generate service method faild\n");
-                return false;
-            }
-        }
-    }
-    else 
-    {
-        printf("error: JSON text doesn't have Rpc definition\n");
-        return false;
-    }
-    */
-
     return true;
 }
 
@@ -237,7 +227,11 @@ int main(int argc, char* argv[])
             return 1;
         }
         memcpy(json+cur, buffer, size);
+        cur += size;
     }
+#ifdef TEST
+    printf("%s\n", json);
+#endif 
 
     if(doc.ParseInsitu(json).HasParseError()) 
     {
@@ -270,7 +264,7 @@ bool generate_header()
 
     o << "\n#include <unordered_map>\n";
     o << "\n#include \"Service.h\"\n";
-    o << "#include \"" << serviceName << "Parm.h\"\n";
+    o << "#include \"" << serviceName << "Param.h\"\n";
 
     o << "\nclass " << serviceName << "Service: public Service\n";
     o << "{\n";
@@ -462,23 +456,35 @@ bool generate_param()
         return false;
     }
 
-    o << "\n#ifndef TINY_RPC_" << conv2upper(serviceName) << "_PARM_H\n";
+    o << "\n#ifndef TINY_RPC_" << conv2upper(serviceName) << "_PARAM_H\n";
     o << "#define TINY_RPC_" << conv2upper(serviceName) << "_PARAM_H\n";
 
     o << "\n#include <cstdint>\n";
 
     for(Method& method: methods)
     {
+        // request struct 
         o << "\nstruct " << method.mName << "_req\n";
         o << "{\n";
         for(int i = 0; i < method.req.size(); ++i)
         {
-            
+            o << "\t" << method.req[i].second << " " 
+              << method.req[i].first << ";\n";
         }
-        o << "}\n";
+        o << "};\n";
+
+        // response struct
+        o << "\nstruct " << method.mName << "_resp\n";
+        o << "{\n";
+        for(int i = 0; i < method.resp.size(); ++i)
+        {
+            o << "\t" << method.resp[i].second << " "
+              << method.resp[i].first << ";\n";
+        }
+        o << "};\n";
     }
 
-    o << "#endif // \n";    // define header
+    o << "\n#endif // \n";    // define header
 
     o.close();
     return true;
