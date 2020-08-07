@@ -10,6 +10,8 @@
 
 #include "ClientStub.h"
 
+#define MAXLEN 10240
+
 using asio::ip::tcp;
 
 class RpcClient
@@ -17,7 +19,7 @@ class RpcClient
 public:
 	RpcClient(std::string hostname, std::string port);
 	RpcClient(std::string port);
-	~RpcClient();
+	~RpcClient() {}
 
     /// @brief
     /// 序列化req,打包请求并发送,接受结果并反序列化至resp中
