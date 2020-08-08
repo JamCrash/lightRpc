@@ -14,6 +14,8 @@ int main()
     rpc.regist("Math", mathStub);
     add_req req;
     add_resp resp;
+    req.x = 4;
+    req.y = 5;
     rpc.Call("Math", "add", req, resp);
     if(resp.err_code != 0) {
         printf("error\n");

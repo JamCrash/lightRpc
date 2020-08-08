@@ -45,7 +45,7 @@ bool MathClientStub::unmarshal(void* resp, size_t len, std::string& methodName, 
     return it->second(resp, len, doc);
 }
 
-std::string marshal_add(void* reqPtr, size_t len)
+std::string MathClientStub::marshal_add(void* reqPtr, size_t len)
 {
     auto req = static_cast<add_req*>(reqPtr);
     Document doc;
@@ -58,12 +58,12 @@ std::string marshal_add(void* reqPtr, size_t len)
     return sb.GetString();
 }
 
-std::string marshal_sub(void* reqPtr, size_t len)
+std::string MathClientStub::marshal_sub(void* reqPtr, size_t len)
 {
 
 }
 
-bool unmarshal_add(void* respPtr, size_t len, Document& doc)
+bool MathClientStub::unmarshal_add(void* respPtr, size_t len, Document& doc)
 {
     auto resp = static_cast<add_resp*>(respPtr);
     resp->err_code = doc["err_code"].GetInt();
