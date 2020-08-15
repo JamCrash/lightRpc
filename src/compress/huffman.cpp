@@ -1,12 +1,11 @@
 
-#include <stdint.h>
+#include <stdio.h>
 #include <assert.h>
-#include <vector>
-#include <string>
 #include <queue>
 #include <functional>
 #include <algorithm>
-#include <utility>
+
+#include "huffman.h"
 
 using namespace std;
 
@@ -20,13 +19,14 @@ struct Node
 {
     virtual TYPE get_type() = 0;
     virtual int get_weight() const = 0;
+    virtual ~Node() = default;
 };
 
 struct Leaf: Node
 {
     int weight;
-    char ch;
-    Leaf(int wei, char ch): weight(wei), ch(ch) {}
+    uint8_t ch;
+    Leaf(int wei, uint8_t ch): weight(wei), ch(ch) {}
     TYPE get_type() { return TYPE::LEAF; }
     int get_weight() const { return weight; }
 };
@@ -49,38 +49,19 @@ struct NodeCmp
     }
 };
 
-struct CompressData
+CompressData compress(string& s, vector<CodeTableItem>& ch2code)
 {
-    vector<uint8_t> data;
-    uint64_t data_len = 0;
-    CompressData(CompressData&& param): data(std::move(param.data)), data_len(param.data_len) {}
-    CompressData& operator=(CompressData&& rhs)
-    {
-        if(this == &rhs) return *this;
-        data = std::move(rhs.data);
-        data_len = rhs.data_len;
-        return *this;
-    }
-};
+    ch2code.clear();
+    ch2code.resize(256, CodeTableItem{0, 0});
 
-struct CodeTableItem
-{
-    uint8_t code;
-    uint8_t len;
-};
-
-vector<CodeTableItem> code_table(256);
-
-CompressData compress(string& s)
-{
     priority_queue<Node*, vector<Node*>, NodeCmp> q;
     vector<int> counter(256, 0);
     CompressData compressed;
-    Node* head;
+    Node* head = nullptr;
 
-    for(char ch: s)
+    for(int i = 0; i < s.size(); ++i) 
     {
-        counter[ch]++;
+        counter[static_cast<uint8_t>(s[i])]++;
     }
 
     for(int i = 0; i < 256; ++i) 
@@ -96,40 +77,50 @@ CompressData compress(string& s)
         q.pop();
         Node* right = q.top();
         q.pop();
+        assert(left != nullptr && right != nullptr);
         Node* inter = new Internal(left->get_weight() + right->get_weight(), left, right);
+
         q.push(inter);
     }
     head = q.top();
+    assert(head != nullptr);
 
+    printf("构建code table\n");
     // 构建code table
     function<void(Node*, uint8_t, uint8_t)> dfs = [&](Node* node, uint8_t depth, uint8_t code) 
     {
+        Internal* inter = nullptr;
+        Leaf* leaf = nullptr;
+
         switch (node->get_type())
         {
         case TYPE::INTERNAL:
-            Internal* inter = dynamic_cast<Internal*>(node);
+            inter = dynamic_cast<Internal*>(node);
             dfs(inter->left, depth+1, code<<1);
             dfs(inter->right, depth+1, (code<<1)|0x1);
             break;
-        
+
         case TYPE::LEAF:
-            Leaf* leaf = dynamic_cast<Leaf*>(node);
-            code_table[leaf->ch] = {code, depth};
+            leaf = dynamic_cast<Leaf*>(node);
+            ch2code[leaf->ch] = {code, depth};
             break;
             
         default:
-            assert(0);
+            printf("error: 非法的节点类型\n");
+            exit(1);
             break;
         }
     };
     dfs(head, 0, 0);
 
+    printf("压缩数据\n");
     // 压缩数据
     uint8_t cur_byte = 0;  // 当前字节
     uint8_t cur_cap = 8;   // 当前剩余比特
-    for(char ch: s)
+    for(int i = 0; i < s.size(); ++i)
     {
-        auto& item = code_table[ch];
+        auto ch = static_cast<uint8_t>(s[i]);
+        auto& item = ch2code[ch];
         auto minl = min(item.len, cur_cap);
         cur_byte <<= minl;
         uint8_t offset = item.len - minl;   // 偏移量(code第二部分长度)
@@ -149,8 +140,76 @@ CompressData compress(string& s)
     {
         cur_byte <<= cur_cap;
         compressed.data.push_back(cur_byte);
-        compressed.data_len += (8 - cur_cap);
     }
 
     return std::move(compressed);
+}
+
+string decompress(CompressData& compressed, vector<CodeTableItem>& ch2code)
+{
+    if(ch2code.size() != 256)
+    {
+        printf("code table 大小不满足256位\n");
+        exit(1);
+    }
+
+    vector<uint8_t> code2ch(0x10000, 0xff);  // 2^16
+    string ret;
+    uint8_t byte = 0;
+    uint8_t len = 0;
+    uint8_t tmp_byte = 0;
+    uint8_t cur_byte = 0;       // 解压数据的当前byte
+    uint8_t cur_byte_offset;    // 当前byte待匹配数据的偏移量(到右侧的距离)
+    CodeTableItem item;
+    uint8_t ch;
+    uint64_t counter = 0;
+    bool flag;  // 标识当前cur_byte是否存在匹配
+
+    for(uint16_t i = 0; i < 256; ++i)
+    {
+        if(ch2code[i].len == 0) continue;
+        code2ch[*reinterpret_cast<uint16_t*>(&ch2code[i])] = (uint8_t)i;
+    }
+
+    for(uint64_t i = 0; i < compressed.data.size(); ++i) 
+    {
+        cur_byte = compressed.data[i];
+        cur_byte_offset = 8;
+        flag = false;
+
+        while(cur_byte_offset != 0 && counter < compressed.data_len) 
+        {
+            cur_byte_offset--;
+            counter++;
+
+            tmp_byte = (byte <<= 1);
+            tmp_byte |= (cur_byte >> cur_byte_offset);
+            len++;
+            item = {tmp_byte, len};
+            ch = code2ch[*reinterpret_cast<uint16_t*>(&item)];
+            if(ch != 0xff)
+            {
+                // 匹配成功
+                flag = true;
+                ret.push_back(ch);
+                len = 0;
+                byte = 0;
+                (cur_byte <<= (8 - cur_byte_offset)) >>= (8 - cur_byte_offset);
+            }
+        }
+        if(cur_byte != 0)
+        {
+            byte = cur_byte;
+        }
+        
+        if(!flag)
+        {
+            // TODO: 2020年08月15日17:19:03 加入错误处理机制
+            // 
+            printf("error: 解压缩出错\n");
+            exit(1);
+        }
+    }
+
+    return std::move(ret);
 }
