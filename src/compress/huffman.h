@@ -4,11 +4,7 @@
 #include <utility>
 #include <string>
 
-struct CodeTableItem
-{
-    uint8_t code;
-    uint8_t len;
-};
+#include "uint256_t.h"
 
 struct CompressData
 {
@@ -25,5 +21,7 @@ struct CompressData
     }
 };
 
-CompressData compress(std::string& s, std::vector<CodeTableItem>& ch2code);
-std::string decompress(CompressData& compressed, std::vector<CodeTableItem>& ch2code);
+//CompressData compress(std::string& s, std::vector<CodeTableItem>& ch2code);
+//std::string decompress(CompressData& compressed, std::vector<CodeTableItem>& ch2code);
+CompressData compress(std::string& s, std::string& serializedHuffman);
+std::string decompress(CompressData& compressed, std::string& serializedHuffman);
